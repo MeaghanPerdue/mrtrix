@@ -4,8 +4,6 @@
 # 27 March 2023
 
 #set directory names based on directories in HPC
-#bids directory
-export bids_dir=/Volumes/catherine_team/Trainee_Folders/mvperdue/preschool/bids_test
 #output directory
 export mrtrix_out=/Volumes/catherine_team/Trainee_Folders/mvperdue/preschool/bids_test/derivatives/mrtrix
 

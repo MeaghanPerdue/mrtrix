@@ -19,13 +19,18 @@ mkdir $mrtrix_out/${1}/${2}/preproc_multishell
 mrconvert ${1}/${2}/dwi/${1}_${2}_acq-b750_dwi.nii.gz $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750.mif -fslgrad $bids_dir/Preschool_b750.bvec $bids_dir/Preschool_b750.bval -json_import $bids_dir/${1}/${2}/dwi/${1}_${2}_acq-b750_dwi.json -json_export $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750.json 
 mrconvert ${1}/${2}/dwi/${1}_${2}_acq-b2000_dwi.nii.gz $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b2000.mif -fslgrad $bids_dir/Preschool_b2000.bvec $bids_dir/Preschool_b2000.bval -json_import $bids_dir/${1}/${2}/dwi/${1}_${2}_acq-b2000_dwi.json -json_export $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b2000.json 
 
-# #b750 has 54 slices, b2000 has 42 slices, need to match in order to concatenate, so crop b750 down to 42, taking 6 slices off the top and 6 of the bottom
+#b750 has 54 slices, b2000 has 42 slices, need to match in order to concatenate, so crop b750 down to 42, taking 6 slices off the top and 6 of the bottom
 mrgrid $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750.mif crop -axis 2 6,6 $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750_crop.mif 
 
-# #concatenate converted dwi runs into a single file (topup/eddy handle registration/alignment automatically)
+#concatenate converted dwi runs into a single file (topup/eddy handle registration/alignment automatically)
 mrcat $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750_crop.mif $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b2000.mif $mrtrix_out/${1}/${2}/preproc_multishell/dwi_concat.mif 
 
-# #perform mrtrix denoising, first step in DWI preproc
+# extract first b0 volume to use for registration
+mrconvert $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750.mif  -coord 3 0 -axes 0,1,2 $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b0.mif -force
+#register T1w image to DWI (moving template)
+mrregister -type rigid $bids_dir/${1}/${2}/anat/${1}_${2}_T1w.nii.gz $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b0.mif -transformed $mrtrix_out/${1}/${2}/T1w_reg2dwi.mif -force
+
+#perform mrtrix denoising, first step in DWI preproc
 # dwidenoise $mrtrix_out/${1}/${2}/preproc_multishell/dwi_concat.mif -extent 9 $mrtrix_out/${1}/${2}/preproc_multishell/dwi_denoise.mif -noise $mrtrix_out/${1}/${2}/preproc_multishell/noise.mif -info -force
 # mrcalc $mrtrix_out/${1}/${2}/preproc_multishell/dwi_concat.mif $mrtrix_out/${1}/${2}/preproc_multishell/dwi_denoise.mif -subtract $mrtrix_out/${1}/${2}/preproc_multishell/res.mif -force
 #there was anatomy visible in the residuals for the subject I tested (I tried both default extent (5) and manual extent (7 & 9)), so we might just skip denoising; probably we don't have enough DW volumes/redundancy for the algorithm (n=60)
