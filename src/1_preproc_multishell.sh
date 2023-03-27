@@ -16,14 +16,14 @@ mkdir $mrtrix_out/${1}/${2}
 mkdir $mrtrix_out/${1}/${2}/preproc_multishell
 
 #convert both DWI runs to .mif format 
-mrconvert ${1}/${2}/dwi/${1}_${2}_acq-b750_dwi.nii.gz $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750.mif -fslgrad $bids_dir/Preschool_b750.bvec $bids_dir/Preschool_b750.bval -json_import $bids_dir/${1}/${2}/dwi/${1}_${2}_acq-b750_dwi.json -json_export $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750.json -force
-mrconvert ${1}/${2}/dwi/${1}_${2}_acq-b2000_dwi.nii.gz $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b2000.mif -fslgrad $bids_dir/Preschool_b2000.bvec $bids_dir/Preschool_b2000.bval -json_import $bids_dir/${1}/${2}/dwi/${1}_${2}_acq-b2000_dwi.json -json_export $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b2000.json -force
+mrconvert ${1}/${2}/dwi/${1}_${2}_acq-b750_dwi.nii.gz $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750.mif -fslgrad $bids_dir/Preschool_b750.bvec $bids_dir/Preschool_b750.bval -json_import $bids_dir/${1}/${2}/dwi/${1}_${2}_acq-b750_dwi.json -json_export $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750.json 
+mrconvert ${1}/${2}/dwi/${1}_${2}_acq-b2000_dwi.nii.gz $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b2000.mif -fslgrad $bids_dir/Preschool_b2000.bvec $bids_dir/Preschool_b2000.bval -json_import $bids_dir/${1}/${2}/dwi/${1}_${2}_acq-b2000_dwi.json -json_export $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b2000.json 
 
 # #b750 has 54 slices, b2000 has 42 slices, need to match in order to concatenate, so crop b750 down to 42, taking 6 slices off the top and 6 of the bottom
-mrgrid $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750.mif crop -axis 2 6,6 $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750_crop.mif -force
+mrgrid $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750.mif crop -axis 2 6,6 $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750_crop.mif 
 
 # #concatenate converted dwi runs into a single file (topup/eddy handle registration/alignment automatically)
-mrcat $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750_crop.mif $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b2000.mif $mrtrix_out/${1}/${2}/preproc_multishell/dwi_concat.mif -force
+mrcat $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b750_crop.mif $mrtrix_out/${1}/${2}/preproc_multishell/dwi_b2000.mif $mrtrix_out/${1}/${2}/preproc_multishell/dwi_concat.mif 
 
 # #perform mrtrix denoising, first step in DWI preproc
 # dwidenoise $mrtrix_out/${1}/${2}/preproc_multishell/dwi_concat.mif -extent 9 $mrtrix_out/${1}/${2}/preproc_multishell/dwi_denoise.mif -noise $mrtrix_out/${1}/${2}/preproc_multishell/noise.mif -info -force
@@ -37,7 +37,7 @@ mrdegibbs $mrtrix_out/${1}/${2}/preproc_multishell/dwi_concat.mif $mrtrix_out/${
 #DWI preprocessing via FSL's eddy correct for eddy current correction and motion correction
 #eddy options slm=linear set due to small number of directions (<60), must include space inside quotes for eddy options to work
 #use openmp for faster processing, change nthreads as appropriate
-dwifslpreproc $mrtrix_out/${1}/${2}/preproc_multishell/dwi_degibbs.mif $mrtrix_out/${1}/${2}/dwi_preprocessed.mif \
+dwifslpreproc $mrtrix_out/${1}/${2}/preproc_multishell/dwi_degibbs.mif $mrtrix_out/${1}/${2}/${1}_${2}_dwi_preprocessed.mif \
 	-eddy_options " --slm=linear" \
 	-rpe_none -pe_dir AP \
 	-eddyqc_all ${1}/${2}/${1}_${2}.qc \
@@ -45,13 +45,10 @@ dwifslpreproc $mrtrix_out/${1}/${2}/preproc_multishell/dwi_degibbs.mif $mrtrix_o
 
 #Create a brain mask based on preprocessed DWI for use in speeding up subsequent analysis
 #preprocessed DWI and mask saved to subject's derivatives/mrtrix folder
-dwi2mask $mrtrix_out/${1}/${2}/dwi_preprocessed.mif $mrtrix_out/${1}/${2}/mask.mif -force
+dwi2mask $mrtrix_out/${1}/${2}/dwi_preprocessed.mif $mrtrix_out/${1}/${2}/${1}_${2}_mask.mif 
 
-
-#QC by visually inspecting residuals for lack of anatomy:
-#mrview res.mif
-#QC: visually compare input and output images for removal of Gibbs Ringing
-#mrview dwi_denoise.mif dwi_degibbs.mif
-
+#Convert preprocessed output and mask to .nii for QC via eddy_quad
+mrconvert $mrtrix_out/${1}/${2}/${1}_${2}_dwi_preprocessed.mif $mrtrix_out/${1}/${2}/${1}_${2}_dwi_preprocessed.nii.gz -export_grad_fsl $mrtrix_out/${1}/${2}/${1}_${2}_dwi_preprocessed.bvec $mrtrix_out/${1}/${2}/${1}_${2}_dwi_preprocessed.bval -json_export $mrtrix_out/${1}/${2}/${1}_${2}_dwi_preprocessed.json -force
+mrconvert $mrtrix_out/${1}/${2}/${1}_${2}_mask.mif $mrtrix_out/${1}/${2}/${1}_${2}_mask.nii.gz
 
 
