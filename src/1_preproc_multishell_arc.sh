@@ -1,14 +1,27 @@
-# dMRI preprocessing for Preschool data with 2 b-vals for CSD in MRtrix
+#!/bin/bash
+#SBATCH --partition=cpu2021 
+#SBATCH --ntasks=1				      # Request 8 CPU cores
+#SBATCH --nodes=1                     # OpenMP requires all tasks running on one node
+#SBATCH --cpus-per-task=16               
+#SBATCH --time=04:00:00			      # Job should run up to 2 hours
+#SBATCH --mail-type=END			      # Trigger email notification
+#SBATCH --mail-user=meaghan.perdue@ucalgary.ca  #destination email address
+
+# dMRI preprocessing for Preschool data with 2 b-vals (b750 & b2000) for CSD in MRtrix
+# run on HPC
 # by Meaghan Perdue
-# 24 March 2023
+# 20 April 2023
+module load openmpi/4.1.1-gnu
+module load mrtrix/3.0.4
+module load ants/2.3.1
+module load fsl/6.0.0-bin
+ 
 
 #set directory names based on directories in HPC
 #bids directory
-export bids_dir=/Volumes/catherine_team/Project_Folders/Preschool/preschool_bids
+export bids_dir=/home/meaghan.perdue/preschool_bids
 #output directory
-export mrtrix_out=/Volumes/catherine_team/Trainee_Folders/mvperdue/preschool/bids_test/derivatives/mrtrix
-
-cd $bids_dir
+export mrtrix_out=/home/meaghan.perdue/mrtrix
 
 #create a subject folder in the mrtrix directory, sub-folder for session, and sub-folder for preprocessing outputs
 mkdir $mrtrix_out/${1}
@@ -16,8 +29,8 @@ mkdir $mrtrix_out/${1}/${2}
 mkdir $mrtrix_out/${1}/${2}/preproc
 
 #convert both DWI runs to .mif format 
-mrconvert ${1}/${2}/dwi/${1}_${2}_acq-b750_dwi.nii.gz $mrtrix_out/${1}/${2}/preproc/dwi_b750.mif -fslgrad $bids_dir/Preschool_b750.bvec $bids_dir/Preschool_b750.bval -json_import $bids_dir/${1}/${2}/dwi/${1}_${2}_acq-b750_dwi.json -json_export $mrtrix_out/${1}/${2}/preproc/dwi_b750.json 
-mrconvert ${1}/${2}/dwi/${1}_${2}_acq-b2000_dwi.nii.gz $mrtrix_out/${1}/${2}/preproc/dwi_b2000.mif -fslgrad $bids_dir/Preschool_b2000.bvec $bids_dir/Preschool_b2000.bval -json_import $bids_dir/${1}/${2}/dwi/${1}_${2}_acq-b2000_dwi.json -json_export $mrtrix_out/${1}/${2}/preproc/dwi_b2000.json 
+mrconvert $bids_dir/${1}/${2}/dwi/${1}_${2}_acq-b750_dwi.nii.gz $mrtrix_out/${1}/${2}/preproc/dwi_b750.mif -fslgrad $bids_dir/Preschool_b750.bvec $bids_dir/Preschool_b750.bval -json_import $bids_dir/${1}/${2}/dwi/${1}_${2}_acq-b750_dwi.json -json_export $mrtrix_out/${1}/${2}/preproc/dwi_b750.json 
+mrconvert $bids_dir/${1}/${2}/dwi/${1}_${2}_acq-b2000_dwi.nii.gz $mrtrix_out/${1}/${2}/preproc/dwi_b2000.mif -fslgrad $bids_dir/Preschool_b2000.bvec $bids_dir/Preschool_b2000.bval -json_import $bids_dir/${1}/${2}/dwi/${1}_${2}_acq-b2000_dwi.json -json_export $mrtrix_out/${1}/${2}/preproc/dwi_b2000.json 
 
 #b750 has 54 slices, b2000 has 42 slices, need to match in order to concatenate, so pad b2000 to match b750
 mrgrid $mrtrix_out/${1}/${2}/preproc/dwi_b2000.mif pad -as $mrtrix_out/${1}/${2}/preproc/dwi_b750.mif -fill nan $mrtrix_out/${1}/${2}/preproc/dwi_b2000_pad.mif 
@@ -27,12 +40,6 @@ mrregister -type rigid $mrtrix_out/${1}/${2}/preproc/dwi_b2000_pad.mif $mrtrix_o
 
 #concatenate converted dwi runs into a single file (topup/eddy handle registration/alignment automatically)
 mrcat $mrtrix_out/${1}/${2}/preproc/dwi_b750.mif $mrtrix_out/${1}/${2}/preproc/dwi_b2000_pad_reg2b750.mif $mrtrix_out/${1}/${2}/preproc/dwi_concat.mif 
-
-
-#perform mrtrix denoising, first step in DWI preproc
-# dwidenoise $mrtrix_out/${1}/${2}/preproc/dwi_concat.mif $mrtrix_out/${1}/${2}/preproc/dwi_denoise.mif -extent 7 -noise $mrtrix_out/${1}/${2}/preproc/noise.mif -info 
-# mrcalc $mrtrix_out/${1}/${2}/preproc/dwi_concat.mif $mrtrix_out/${1}/${2}/preproc/dwi_denoise.mif -subtract $mrtrix_out/${1}/${2}/preproc/res.mif 
-#there was anatomy visible in the residuals for the subject I tested (I tried both default extent (5) and manual extent (7 & 9)), so we might just skip denoising; probably we don't have enough DW volumes/redundancy for the algorithm (n=60)
 
 #perform Gibbs Ringing correction via MRTrix3
 mrdegibbs $mrtrix_out/${1}/${2}/preproc/dwi_concat.mif $mrtrix_out/${1}/${2}/preproc/dwi_degibbs.mif -info 
@@ -44,7 +51,7 @@ dwifslpreproc $mrtrix_out/${1}/${2}/preproc/dwi_degibbs.mif $mrtrix_out/${1}/${2
 	-eddy_options " --slm=linear --repol" \
 	-rpe_none -pe_dir AP \
 	-eddyqc_all $mrtrix_out/${1}/${2}/${1}_${2}.qc \
-	-nthreads 8 
+	-nthreads 16 
 	
 
 # Run bias correction (testing this to see how the masks look)
