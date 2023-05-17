@@ -21,7 +21,7 @@ module load fsl/6.0.0-bin
 #bids directory
 export bids_dir=/home/meaghan.perdue/preschool_bids
 #output directory
-export mrtrix_out=/home/meaghan.perdue/mrtrix
+export mrtrix_out=/homes/meaghan.perdue/mrtrix
 
 #create a subject folder in the mrtrix directory, sub-folder for session, and sub-folder for preprocessing outputs
 mkdir $mrtrix_out/${1}
@@ -42,12 +42,12 @@ mrregister -type rigid $mrtrix_out/${1}/${2}/preproc/dwi_b2000_pad.mif $mrtrix_o
 mrcat $mrtrix_out/${1}/${2}/preproc/dwi_b750.mif $mrtrix_out/${1}/${2}/preproc/dwi_b2000_pad_reg2b750.mif $mrtrix_out/${1}/${2}/preproc/dwi_concat.mif 
 
 #perform Gibbs Ringing correction via MRTrix3
-mrdegibbs $mrtrix_out/${1}/${2}/preproc/dwi_concat.mif $mrtrix_out/${1}/${2}/preproc/dwi_degibbs.mif -info 
+mrdegibbs $mrtrix_out/${1}/${2}/preproc/dwi_concat.mif $mrtrix_out/${1}/${2}/preproc/dwi__ms_degibbs.mif -info 
 
 #DWI preprocessing via FSL's eddy correct for eddy current correction and motion correction
 #eddy options slm=linear set due to small number of directions (<60), must include space inside quotes for eddy options to work
 #use openmp for faster processing, change nthreads as appropriate
-dwifslpreproc $mrtrix_out/${1}/${2}/preproc/dwi_degibbs.mif $mrtrix_out/${1}/${2}/preproc/${1}_${2}_dwi_ms_eddy.mif \
+dwifslpreproc $mrtrix_out/${1}/${2}/preproc/dwi_ms_degibbs.mif $mrtrix_out/${1}/${2}/preproc/${1}_${2}_dwi_ms_eddy.mif \
 	-eddy_options " --slm=linear --repol" \
 	-rpe_none -pe_dir AP \
 	-eddyqc_all $mrtrix_out/${1}/${2}/${1}_${2}.qc \
