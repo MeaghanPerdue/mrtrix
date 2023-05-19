@@ -36,7 +36,7 @@ mrdegibbs $mrtrix_out/${1}/${2}/preproc/dwi_b750.mif $mrtrix_out/${1}/${2}/prepr
 #eddy options slm=linear set due to small number of directions (<60), must include space inside quotes for eddy options to work
 #eddy options repol set to run outlier replacement - helps with motion correction
 #use openmp for faster processing, change nthreads as appropriate
-dwifslpreproc $mrtrix_out/${1}/${2}/preproc/dwi_degibbs.mif $mrtrix_out/${1}/${2}/preproc/${1}_${2}_dwi_b750_preprocessed.mif \
+dwifslpreproc $mrtrix_out/${1}/${2}/preproc/dwi_degibbs.mif $mrtrix_out/${1}/${2}/${1}_${2}_dwi_b750_preprocessed.mif \
 	-eddy_options " --slm=linear --repol" \
 	-rpe_none -pe_dir AP \
 	-eddyqc_all $mrtrix_out/${1}/${2}/${1}_${2}_b750.qc \
